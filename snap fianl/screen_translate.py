@@ -1,22 +1,26 @@
 import sys
-import io
 import threading
 import time
 import keyboard
 import pyautogui
 import pytesseract
 import winsound
+import os
 from deep_translator import GoogleTranslator
 from PyQt5.QtWidgets import (
     QApplication, QLabel, QWidget, QMessageBox, QVBoxLayout,
     QPushButton, QTextEdit, QDialog, QComboBox, QHBoxLayout, QFrame
 )
-from PyQt5.QtGui import QPainter, QPen, QFont, QColor
-from PyQt5.QtCore import Qt, QRect, QPoint
-from PIL import Image
+from PyQt5.QtGui import QPainter, QPen, QFont, QColor, QPixmap, QIcon
+from PyQt5.QtCore import Qt, QPoint, QRectF
 
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-
+LANGUAGES_DICT = GoogleTranslator().get_supported_languages(as_dict=True)
+languages_sort = sorted(LANGUAGES_DICT.items(), key=lambda item: item[0])
+LANG_FULL_NAMES = [item[0].capitalize() for item in languages_sort]
+LANG_CODES = [item[1] for item in languages_sort]
+english_index = LANG_FULL_NAMES.index("English")
+    
 def exit_program():
     print("กำลังปิดโปรแกรม...")
     QApplication.quit()
@@ -30,94 +34,115 @@ def translate_text(text, source='auto', target='th'):
         return f"[แปลไม่สำเร็จ: {e}]"
 
 class CaptureWindow(QWidget):
+    paint = QRectF()
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("เลือกพื้นที่หน้าจอ")
-        self.setWindowOpacity(0.3)
-        self.showFullScreen()
+        self.is_pressing = False
         self.start = QPoint()
         self.end = QPoint()
         self.setMouseTracking(True)
         self.setCursor(Qt.CrossCursor)
-        self.setStyleSheet("background-color: rgba(0,0,0,100);")
+        self.background_pixmap = QPixmap()
+        screen = QApplication.primaryScreen()
+        self.background_pixmap = screen.grabWindow(0)
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint |
+            Qt.WindowType.WindowStaysOnTopHint
+        )
+        self.showFullScreen()
+        self.screen_rect = self.rect()
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
             self.close()
-            exit_program()
-
-    def paintEvent(self, event):
-        if not self.start.isNull() and not self.end.isNull():
-            qp = QPainter(self)
-            qp.setPen(QPen(Qt.cyan, 2, Qt.SolidLine))
-            rect = QRect(self.start, self.end)
-            qp.drawRect(rect.normalized())
+            exit_program() 
 
     def mousePressEvent(self, event):
-        self.start = event.pos()
-        self.end = self.start
-        self.update()
+        if event.button() == Qt.LeftButton:
+            self.start = event.pos()
+            self.end = self.start
+            self.is_pressing = True
+            self.update()
 
     def mouseMoveEvent(self, event):
-        self.end = event.pos()
-        self.update()
+        if self.is_pressing:
+            self.end = event.pos()
+            self.paint = QRectF(self.start, self.end)
+            self.update()
 
     def mouseReleaseEvent(self, event):
-        self.end = event.pos()
-        self.close()
+        if event.button() == Qt.LeftButton and self.is_pressing:
+            self.end = event.pos()
+            self.close()
 
     def get_region(self):
         x1, y1 = self.start.x(), self.start.y()
         x2, y2 = self.end.x(), self.end.y()
         return (min(x1, x2), min(y1, y2), abs(x2 - x1), abs(y2 - y1))
 
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        if not self.background_pixmap.isNull():
+            painter.drawPixmap(self.rect(), self.background_pixmap)
+
+        mask_pixmap = QPixmap(self.screen_rect.size())
+        mask_pixmap.fill(Qt.transparent)
+
+        mask_painter = QPainter(mask_pixmap)
+
+        veil_color = QColor(0, 0, 0, 150)
+        mask_painter.fillRect(mask_pixmap.rect(), veil_color)
+
+        mask_painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_DestinationOut)
+        if not self.paint.isNull(): 
+            mask_painter.fillRect(self.paint, Qt.white)
+        mask_painter.end()
+        painter.drawPixmap(0, 0, mask_pixmap)
+        
+        painter.setPen(QPen(Qt.white, 2, Qt.SolidLine))
+        if not self.paint.isNull():
+            painter.drawRect(self.paint)
+
+def load_theme_file(name):
+    path = os.path.join(os.path.dirname(__file__), 'theme', name)
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        print(f"Error: QSS file '{name}' not found.")
+        return ""
+
 class TranslateDialog(QDialog):
     def __init__(self, translated_text):
         super().__init__()
+        self.current_theme = "dark"
+
+        self.light_theme = load_theme_file("light_theme.qss")
+        self.dark_theme = load_theme_file("dark_theme.qss")
+
+        self.setWindowIcon(QIcon("icon.png"))
         self.setWindowTitle("Screen Translator ✨")
         self.resize(520, 460)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #f3f5f7;
-                color: #222;
-                border-radius: 12px;
-            }
-            QLabel {
-                font-size: 15px;
-                font-weight: 500;
-                color: #2c3e50;
-            }
-            QTextEdit {
-                border: 1px solid #ccd2d8;
-                border-radius: 8px;
-                background-color: #ffffff;
-                padding: 6px;
-                font-size: 14px;
-                font-family: "Segoe UI";
-            }
-            QPushButton {
-                background-color: #4a90e2;
-                color: white;
-                border-radius: 6px;
-                padding: 6px 10px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #357ABD;
-            }
-            QComboBox {
-                border: 1px solid #ccd2d8;
-                border-radius: 6px;
-                padding: 4px 6px;
-                background-color: white;
-                font-size: 13px;
-            }
-        """)
+        self.setStyleSheet(self.dark_theme)
 
         layout = QVBoxLayout()
+
+        top_h_layout = QHBoxLayout()
+        top_h_layout.setContentsMargins(15, 10, 15, 5)
+
         title = QLabel("คำแปลจากภาพ")
         title.setFont(QFont("Segoe UI", 16, QFont.Bold))
-        layout.addWidget(title)
+        top_h_layout.addWidget(title)
+
+        top_h_layout.addStretch(1)
+
+        self.btn_theme = QPushButton("Switch to Light Mode")
+        self.btn_theme.clicked.connect(self.theme_switch)
+
+        top_h_layout.addWidget(self.btn_theme)
+
+        layout.addLayout(top_h_layout)
 
         self.output = QTextEdit()
         self.output.setPlainText(translated_text)
@@ -126,7 +151,6 @@ class TranslateDialog(QDialog):
 
         separator = QFrame()
         separator.setFrameShape(QFrame.HLine)
-        separator.setStyleSheet("color: #d0d6db;")
         layout.addWidget(separator)
 
         sub_label = QLabel("พิมพ์ภาษาไทยเพื่อแปลกลับ ↓")
@@ -135,9 +159,11 @@ class TranslateDialog(QDialog):
         self.input = QTextEdit()
         layout.addWidget(self.input)
 
-        h_layout = QHBoxLayout()
+        h_layout = QHBoxLayout() 
+
         self.lang_select = QComboBox()
-        self.lang_select.addItems(["en", "ja", "ko", "zh-CN", "fr", "de"])
+        self.lang_select.addItems(LANG_FULL_NAMES)
+        self.lang_select.setCurrentIndex(english_index)
         h_layout.addWidget(self.lang_select)
 
         btn_translate = QPushButton("แปลกลับ")
@@ -159,6 +185,16 @@ class TranslateDialog(QDialog):
         layout.addWidget(self.result_box)
 
         self.setLayout(layout)
+ 
+    def theme_switch(self):
+        if self.current_theme == "light":
+            self.setStyleSheet(self.dark_theme)
+            self.current_theme = "dark"
+            self.btn_theme.setText("Switch to Light Mode")
+        else:
+            self.setStyleSheet(self.light_theme)
+            self.current_theme = "light"
+            self.btn_theme.setText("Switch to Dark Mode")
 
     def translate_back(self):
         text = self.input.toPlainText().strip()
@@ -166,11 +202,11 @@ class TranslateDialog(QDialog):
             self.result_box.setPlainText("[กรุณาพิมพ์ข้อความภาษาไทยก่อน]")
             return
 
-        target_lang = self.lang_select.currentText()
-        translated_back = translate_text(text, source='th', target=target_lang)
+        target_lang = self.lang_select.currentIndex()
+        translated_back = translate_text(text, source='th', target=LANG_CODES[target_lang])
         self.result_box.setPlainText(translated_back)
         winsound.MessageBeep()
-        save_history(text, translated_back, target_lang)
+        save_history(text, translated_back, LANG_CODES[target_lang])
 
     def copy_text(self):
         clipboard = QApplication.clipboard()
@@ -183,7 +219,7 @@ def save_history(input_thai, output_translated, lang):
         f.write(f"{lang.upper()}: {output_translated}\n\n")
 
 def do_capture_translate():
-    app = QApplication.instance() or QApplication(sys.argv)
+    app = QApplication(sys.argv)
     capture = CaptureWindow()
     capture.show()
     app.exec_()
@@ -200,14 +236,12 @@ def do_capture_translate():
     show_dialog(translated)
 
 def show_popup(message):
-    app = QApplication.instance() or QApplication(sys.argv)
     msg = QMessageBox()
     msg.setWindowTitle("คำแปลจากภาพ")
     msg.setText(message)
     msg.exec_()
 
 def show_dialog(translated_text):
-    app = QApplication.instance() or QApplication(sys.argv)
     dialog = TranslateDialog(translated_text)
     dialog.exec_()
 
