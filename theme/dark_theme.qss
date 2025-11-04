@@ -1,0 +1,40 @@
+QDialog {
+        background-color: #2c2c2c; /* Dark background */
+        color: #f0f0f0; /* Light text */
+        border-radius: 12px;
+    }
+    QLabel {
+        font-size: 15px;
+        font-weight: 500;
+        color: #f0f0f0; /* Light text */
+    }
+    QTextEdit {
+        border: 1px solid #555555;
+        border-radius: 8px;
+        background-color: #383838; /* Darker input background */
+        color: #f0f0f0;
+        padding: 6px;
+        font-size: 14px;
+        font-family: "Segoe UI";
+    }
+    QPushButton {
+        background-color: #7289da; /* Lighter blue/purple button */
+        color: white;
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-weight: 500;
+    }
+    QPushButton:hover {
+        background-color: #5b6fb5;
+    }
+    QComboBox {
+        border: 1px solid #555555;
+        border-radius: 6px;
+        padding: 4px 6px;
+        background-color: #383838;
+        color:rgb(80, 80, 80);
+        font-size: 13px;
+    }
+    QFrame {
+        color:rgb(119, 119, 119); /* Separator line color */
+    }
