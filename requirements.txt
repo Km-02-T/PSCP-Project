@@ -4,4 +4,3 @@ pyautogui
 pytesseract
 deep-translator
 keyboard
-winsound
