@@ -1,0 +1,7 @@
+# requirements.txt
+PyQt5
+pyautogui
+pytesseract
+deep-translator
+keyboard
+winsound
