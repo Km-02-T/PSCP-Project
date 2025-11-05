@@ -4,8 +4,7 @@
 -ให้ติดตั้ง python 3.6 ขึ้นไป<br>
 -ติดตั้ง Tesseract OCR Engine <https://github.com/UB-Mannheim/tesseract/wiki> และต้องตรวงสอบแก้โค้ด <br>pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"<br>
 โดยการตั้ง Path ตามที่ตัวเองติดตั้ง tesseract.exe ไว้<br>
--Command Prompt (CMD) หรือ Terminal ในโฟลเดอร์ที่เก็บไฟล์โค้ด จากนั้นให้ผู้ใช้รันคำสั่ง pip install -r requirements.txt
-<br>
+-Command Prompt (CMD) หรือ Terminal ในโฟลเดอร์ที่เก็บไฟล์โค้ด จากนั้นให้ผู้ใช้รันคำสั่ง pip install -r requirements.txt <br><br>
 วิธีการใช้งาน <br>
 เมื่อกดรันหรือ กดเปิดไฟล์ exe แล้วจะไม่มีอะไรเด้งขึ้นบอกเลย <br>
 ให้กด Ctrl + t เพื่อเป็นการเปิดหน้าต่างเลือกพื้นที่ที่ต้องการจะแปล <br>
